@@ -1,20 +1,52 @@
 #lang play
-
-
 #|
-¿Utilizó Ud. la política de Whiteboard Policy para la resolución de la taea (complete con SI o NO):
+¿Utilizó Ud. la política de Whiteboard Policy para la resolución de la tarea (complete con SI o NO): NO
 En caso afirmativo, indique con quién y sobre qué ejercicio(s): 
 |#
 
+#|
+Metodología 
+1. Understand what the function does
+2. Write the function contract
+3. Write the function purpose
+4. Provide tests
+5. Provide an implementation
+|#
 
 #| P1 |#
 
-#| Parte A |#
+#| Parte A  
+<Prop> :: = (varp <String>)
+        |   (andp <Prop> <Prop>)
+        |   (orp <Prop> <Prop>)
+        |   (notp <Prop>)
+;; Defines the recursive data type "Prop" with its grammar.
+|#
+ 
+(deftype Prop
+    (varp n)
+    (andp p q)
+    (orp p q)
+    (notp p))
 
-#| Parte B |#
+#| Parte B 
+occurrences :: Prop String -> Number
+;; Returns the number of occurrences of a variable.
+|#
 
-;; occurrences :: Prop String -> Number
-
+(define (occurrences p s) 
+    (match p
+        [(varp q) 
+            (cond
+                [(equal? q s) 1]
+                [else 0])]
+        [(andp q r) 
+            (+ (occurrences q s) (occurrences r s))]
+        [(orp q r) 
+            (+ (occurrences q s) (occurrences r s))]
+        [(notp q) 
+            (+ (occurrences q s) )]))
+        
 #| Parte C |#
 
 ;; vars :: Prop -> (Listof String)
