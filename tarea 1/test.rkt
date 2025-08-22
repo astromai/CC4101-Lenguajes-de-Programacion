@@ -11,3 +11,11 @@
 (test (occurrences (andp (varp "a") (varp "b")) "a") 1)
 (test (occurrences (andp (varp "a") (varp "a")) "a") 2)
 (test (occurrences (notp (andp (varp "a") (varp "c"))) "a") 1)
+
+;; Test (vars)
+
+(test (vars (varp "a")) '("a"))
+(test (vars (notp (varp "a"))) '("a"))
+(test (vars (andp (varp "a") (varp "b"))) '("a" "b"))
+(test (vars (andp (varp "a") (varp "a"))) '("a"))
+(test (vars (notp (andp (varp "a") (varp "c")))) '("a" "c"))

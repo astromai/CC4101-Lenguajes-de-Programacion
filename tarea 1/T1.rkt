@@ -5,7 +5,7 @@ En caso afirmativo, indique con quién y sobre qué ejercicio(s):
 |#
 
 #|
-Metodología 
+Methodology 
 1. Understand what the function does
 2. Write the function contract
 3. Write the function purpose
@@ -47,9 +47,22 @@ occurrences :: Prop String -> Number
         [(notp q) 
             (+ (occurrences q s) )]))
         
-#| Parte C |#
+#| Parte C 
+vars :: Prop -> (Listof String)
+;; Returns a list of unique variables in the proposition.
+|#
 
-;; vars :: Prop -> (Listof String)
+(define (vars p)
+    (match p
+        [(varp q) 
+            (list q)]
+        [(andp q r) 
+            (remove-duplicates(append (vars q) (vars r)))]
+        [(orp q r) 
+            (remove-duplicates(append (vars q) (vars r)))]
+        [(notp q) 
+            (vars q)])
+) 
 
 #| Parte D |#
 
