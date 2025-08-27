@@ -15,24 +15,24 @@ Methodology
 
 #| P1 |#
 
-#| Parte A  
+#| Parte A |#
+#|
 <Prop> :: = (varp <String>)
         |   (andp <Prop> <Prop>)
         |   (orp <Prop> <Prop>)
         |   (notp <Prop>)
-;; Defines the recursive data type "Prop" with its grammar.
 |#
- 
+;; Defines the recursive data type "Prop" with its grammar.
+
 (deftype Prop
     (varp n)
     (andp p q)
     (orp p q)
     (notp p))
 
-#| Parte B 
-occurrences :: Prop String -> Number
+#| Parte B |#
+;; occurrences :: Prop String -> Number
 ;; Returns the number of occurrences of a variable.
-|#
 
 (define (occurrences p s) 
     (match p
@@ -47,10 +47,9 @@ occurrences :: Prop String -> Number
         [(notp q) 
             (+ (occurrences q s) )]))
         
-#| Parte C 
-vars :: Prop -> (Listof String)
+#| Parte C |#
+;; vars :: Prop -> (Listof String)
 ;; Returns a list of unique variables in the proposition.
-|#
 
 (define (vars p)
     (match p
@@ -61,12 +60,26 @@ vars :: Prop -> (Listof String)
         [(orp q r) 
             (remove-duplicates(append (vars q) (vars r)))]
         [(notp q) 
-            (vars q)])
-) 
+            (vars q)])) 
 
 #| Parte D |#
 
+;; Auxiliary function
+;; rec-enviroments :: String (Listof (Listof (Pair String Boolean))) -> (Listof (Listof (Pair String Boolean)))
+;; Returns a list with adding a new enviroment.  
+
+(define (rec-enviroments s acc)
+    (define x (list (cons s #t)))
+    (define y (list (cons s #f)))
+    (append (map (lambda (ls) (append x ls)) acc) 
+            (map (lambda (ls) (append y ls)) acc)))
+
+
 ;; all-environments :: (Listof String) -> (Listof (Listof (Pair String Boolean)))
+;; Returns a list of all the possibles enviroments.
+
+(define (all-environments l) 
+    (foldr rec-enviroments '(()) l))
 
 #| Parte E |#
 
