@@ -84,12 +84,35 @@ Methodology
 #| Parte E |#
 
 ;; eval :: Prop (Listof (Pair String Boolean)) -> Boolean
+;; Returns an evaluation for the proposition.
+
+(define (eval p l)
+    (match p
+        [(varp q) 
+            (cond
+                [(assoc q l) (cdr (assoc q l))]
+                [else (error 'eval (format "variable ~a is not defined in environment" q))])]
+        [(andp q r) 
+            (and (eval q l) (eval r l))]
+        [(orp q r) 
+            (or (eval q l) (eval r l))]
+        [(notp q) 
+            (not (eval q l))]) 
+)
 
 #| Parte F |#
 
 ;; tautology? :: Prop -> Boolean
+;; Return if an evaluation could be a tautology in any enviroment.
 
-
+(define (tautology? p)
+    (define l (vars p))
+    (define lst (all-environments l))
+    (foldl 
+        (lambda (x acc) 
+            (and acc (eval p x))) 
+        #t 
+        lst))
 
 #| P2 |#
 
