@@ -119,6 +119,30 @@ Methodology
 #| Parte A |#
 
 ;; simplify-negations :: Prop -> Prop
+;; Return a simplified proposition of negations.
+
+(define (simplify-negations p)
+    (match p
+        ;; Base case
+        [(varp q) (varp q)]
+        [(notp (varp q)) (notp (varp q))]
+
+        ;; Double Negation
+        [(notp (notp q))
+            (simplify-negations q)]
+
+        ;; Morgan Law    
+        [(notp (andp q r)) 
+            (orp (notp (simplify-negations  q)) (notp (simplify-negations r)))]
+        [(notp (orp q r))
+            (andp (notp (simplify-negations  q)) (notp (simplify-negations r)))]
+
+        ;; Inductiva case
+        [(andp q r)
+            (andp (simplify-negations q) (simplify-negations r))]
+        [(orp q r)
+            (orp (simplify-negations q) (simplify-negations r))])
+)
 
 #| Parte B |#
 
