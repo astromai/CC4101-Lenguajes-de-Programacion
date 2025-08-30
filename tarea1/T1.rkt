@@ -197,6 +197,7 @@ Methodology
 #| Parte D |#
 
 ;; DNF :: Prop -> Prop
+;; Returns the DNF of a Prop by simplifying negations and distributing ANDs over ORs.
 
 (define (DNF p)
     (define y ((apply-until simplify-negations equal?) p))
@@ -209,6 +210,7 @@ Methodology
 #| Parte A |#
 
 ;; fold-prop :: (String -> a) (a a -> a) (a a -> a) (a -> a) -> Prop -> a
+;; Returns a value by recursively folding over a Prop expression using f, g, h, and s. 
 
 (define (fold-prop f g h s)
     (lambda (p)
