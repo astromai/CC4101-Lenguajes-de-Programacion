@@ -1,6 +1,5 @@
 #lang play
 
-
 #|
 Nombre: Tomás Ubilla Zavala
 ¿Utilizó Whiteboard Policy? (SI o NO):
@@ -32,8 +31,8 @@ Methodology
          | (with <id> <poly> <poly>)
 |#
 ;; Defines the recursive data type "poly" with its grammar.
-(deftype poly
-  (poly lst)
+(deftype Poly
+  (poly l)
   (id x)
   (add r l)
   (mul r l)
@@ -53,20 +52,63 @@ Methodology
            | (list with <symbol> <s-poly> <s-poly>)
 |#
 
+;; remove-trailing-zeros :: (Listof Number) -> (Listof Number)
+;; Removes trailing zeros from a list of numbers.
+(define (remove-trailing-zeros lst)
+  (define (helper l)
+    (cond
+      [(null? l) '()] ; si lista vacía, devuelve lista vacía temporalmente
+      [else
+       (let ((rest (helper (cdr l))))
+         (if (and (null? rest) (= (car l) 0))
+             '() ; eliminar cero al final
+             (cons (car l) rest)))]))
+  (let ((res (helper lst)))
+    (if (null? res) '(0) res))) ; si toda la lista eran ceros, devuelve '(0)
+
 ;; parse :: <s-poly> -> Poly
 ;; Returns the parse source code into abstract syntax.
 (define (parse s-poly)
   (match s-poly
     ;; atoms 
-    [x #when (number? x) (poly list x)]
-    [x #when (symbol? x) (id x)]
+    [x #:when (number? x) (poly (list x))]
+    [x #:when (symbol? x) (id x)]
+
     ;; operators
-    [(list '+ first rest ...) (foldl (lambda (a b) (add a (parse b))) (parse first) rest)]
-    [(list '* first rest ...) (foldl (lambda (a b) (mul a (parse b))) (parse first) rest)]
-    [(list 'if0 c r l) (if0 (parse c) (parse r) (parse l))]
-    [(list 'with x r l) (with (parse x) (parse r) (parse l))]
-    ;; list of numbers
-    [(list first rest ...) (poly (cons first rest))]
+      ;; +
+    [(list '+ first rest ...)
+     (let* 
+        ( 
+          [f (parse first)] 
+          [r (map parse rest)]
+        )
+        (foldl (lambda (v acc) (add acc v)) f r)
+     )
+    ]  
+      ;; *          
+    [(list '* first rest ...) 
+     (let* 
+        (
+          [f (parse first)]
+          [r (map parse rest)]
+        )
+        (foldl (lambda (v acc) (mul acc v)) f r)
+      )
+    ] 
+    ;; if0
+    [(list 'if0 c l r) (if0 (parse c) (parse l) (parse r))]
+    
+    ;; with
+    [(list 'with x l r) (with x (parse l) (parse r))]
+    
+    ;; list of numbers (not empty)
+    [x #:when 
+      (and 
+        (list? x) 
+        (not (null? x)) 
+        (andmap number? x)
+      ) 
+      (poly (remove-trailing-zeros x))] 
   )
 )
 
@@ -104,35 +146,70 @@ Methodology
 #| Parte A |#
 
 #|
-<expr> ::= ...
+<expr> ::= (real <number>)
+        | (imaginary <number>)
+        | (idc <idc>)
         | (addc <expr> <expr>)
         | (subc <expr> <expr>)
         | (if0c <expr> <expr> <expr>)
-        | ...
+        | (withc (ListOf (PairOf <symbol> <expr>)) <expr>)
 |#
 (deftype Expr
-  ; ...
+  (real x)
+  (imaginary x)
+  (idc x)
   (addc l r)
   (subc l r)
   (if0c c t f)
-  ; ...
-  )
+  (withc l e)
+)
 
 #| Parte B |#
 
 #|
 Concrete syntax of expressions:
 
-<s-expr> ::= ...
+<s-expr> ::= <number>
+           | (PairOf <number string>)
+           | <symbol>
            | (+ <s-expr> <s-expr>)
            | (- <s-expr> <s-expr>)
            | (if0 <s-expr> <s-expr> <s-expr>)
-           | ...
+           | (with (ListOf (PairOf <symbol> <number>)) s-expr)
 |#
 
 ;; parser :: <s-expr> -> Expr
 
-(define (parser s-expr) '???)
+(define (parser s-expr) 
+  (match s-expr
+  ;; atoms
+    [x #:when (number? x) (real x)]
+    [x #:when (symbol? x) (idc x)]
+    [x #:when 
+      (and 
+        (pair? x) 
+        (number? (car x)) 
+        (not(equal? (car x) 0)) 
+        (string=? (symbol->string (cadr x)) "i")
+      ) 
+      (imaginary (car x))]
+
+  ;; operators 
+    ;; + -> addc
+    [(list '+ l r) (addc (parser l) (parser r))]
+    ;; - -> subc
+    [(list '- l r) (subc (parser l) (parser r))]
+    ;; if0 -> if0
+    [(list 'if0c c l r) (if0 (parser c) (parser l) (parser r))]
+    ;; with -> withc
+    [(list 'with l x)
+      (if (zero? (length l))
+          "parser: *with* expects at least one definition"
+          (withc
+            (map (lambda (s) (cons (car s) (parser (cadr s)))) l)
+            (parser (car x))))]
+  )
+)
 
 #| Parte C |#
 
