@@ -135,9 +135,69 @@ Methodology
                           v
                           (env-lookup x tail))]))
 
+;; PolySubst :: Poly Symbol Poly -> Poly
+;; (PolySubst in what for) substitutes all free occurrences
+;; of identifier 'what' in expression 'in' for expression 'for'.
+(define (PolySubst in what for)
+  (match in
+    [(poly n) (poly n)]
+    [(add l r) (add (PolySubst l what for) (PolySubst r what for))]
+    [(mul l r) (mul (PolySubst l what for) (PolySubst r what for))]
+    [(if0 c t f) (if0 (PolySubst c what for)
+                      (PolySubst t what for)
+                      (PolySubst f what for))]
+    [(with x e b)
+     (with x
+           (PolySubst e what for)
+           (if (symbol=? x what) ;; is x the identifier to be substituted? 
+               b ;; x does not occur free in b
+               (PolySubst b what for)))]
+    [(id x) (if (symbol=? x what)
+                for
+                (id x))]))
+
 ;; reduce :: Poly Env -> Poly
-
-
+(define (reduce p e)
+  (match p
+    [(poly l) (poly l)]
+    [(add l r) 
+      (match (list (reduce l e) (reduce r e))
+        [(list (poly lst1) (poly lst2))
+          (poly (map + lst1 lst2))
+        ]
+      )
+    ]
+    [(mul l r)       
+      (match (list (reduce l e) (reduce r e))
+        [(list (poly lst1) (poly lst2))
+          (poly (map * lst1 lst2))
+        ]
+      )
+    ]
+    [(id x)
+      (let ([val (env-lookup x e)])
+        (if val
+          val
+          (error 'reduce (format "variable ~a is not defined" x))))
+    ]
+    [(if0 c t f)
+      (if (equal? (poly '(0)) (reduce c e))
+        (reduce t e)
+        (reduce f e)
+      )
+    ]
+    [(with x l r)
+      (reduce 
+        (PolySubst
+          r
+          x
+          (reduce l e)
+        )
+        e
+      )
+    ]  
+  )
+)
 
 ;;------------ ;;
 ;;==== P2 ==== ;;
@@ -204,10 +264,10 @@ Concrete syntax of expressions:
     ;; with -> withc
     [(list 'with l x)
       (if (zero? (length l))
-          "parser: *with* expects at least one definition"
-          (withc
-            (map (lambda (s) (cons (car s) (parser (cadr s)))) l)
-            (parser (car x))))]
+        "parser: *with* expects at least one definition"
+        (withc
+          (map (lambda (s) (cons (car s) (parser (cadr s)))) l)
+          (parser x)))]
   )
 )
 
@@ -220,24 +280,101 @@ Concrete syntax of expressions:
 (deftype CValue (compV r i))
 
 ;; from-CValue :: CValue -> Expr
-(define (from-CValue v) '???)
+(define (from-CValue v) 
+  (def x (compV-r v))
+  (def y (compV-i v))
+  (addc (real x) (imaginary y))
+)
 
 ;; cmplx+ :: CValue CValue -> CValue
-(define (cmplx+ v1 v2) '???)
+(define (cmplx+ v1 v2) 
+  (def (compV r1 im1) v1) ;; cast
+  (def (compV r2 im2) v2) ;; cast
+  (compV (+ r1 r2) (+ im1 im2))
+)
 
 ;; cmplx- :: CValue CValue -> CValue
-(define (cmplx- v1 v2) '???)
+(define (cmplx- v1 v2)
+  (def (compV r1 im1) v1) ;; cast
+  (def (compV r2 im2) v2) ;; cast
+  (compV (- r1 r2) (- im1 im2))
+)
 
 ;; cmplx0? :: CValue -> Boolean
-(define (cmplx0? v) '???)
+(define (cmplx0? v)
+  (def (compV re im) v)
+  (and (zero? re) (zero? im))
+)  
 
 #| Parte D |#
 
 ;; subst :: Expr Symbol Expr -> Expr
-(define (subst in what for) '???)
+(define (subst in what for)
+  (match in
+    [(real n) (real n)]
+    [(imaginary n) (imaginary n)]
+    [(idc x) (if (symbol=? x what)
+                 for
+                 (idc x))]
+    [(addc l r) (addc (subst l what for)
+                      (subst r what for))]
+    [(subc l r) (subc (subst l what for)
+                      (subst r what for))]
+    [(if0c c t f) (if0c (subst c what for)
+                        (subst t what for)
+                        (subst f what for))]
+    [(withc defs body)
+      ;; Función auxiliar para manejar shadowing en defs
+      (define (subst-defs ds)
+        (cond
+          [(empty? ds) (values '() #f)]
+          [else
+           (define name (car (car ds)))
+           (define expr (cdr (car ds)))
+           (if (symbol=? name what)
+               ;; Encontramos shadowing
+               (values (cons (cons name expr) (cdr ds)) #t)
+               (let-values ([(rest-defs shadow?) (subst-defs (cdr ds))])
+                 (values (cons (cons name (subst expr what for)) rest-defs)
+                         shadow?)))]))
+      (define-values (new-defs shadow?) (subst-defs defs))
+      (withc new-defs
+        (if shadow?
+            body
+            (subst body what for)))]))
 
 #| Parte E |#
 
 ;; interp :: Expr -> CValue
-(define (interp expr) '???)
+(define (interp expr) 
+  (match expr
+    [(real x) (compV x 0)]
+    [(imaginary x) (compV 0 x)]
+    [(idc x) (error "Free occurrence of a variable")]
+    [(addc l r) (cmplx+ (interp l) (interp r))]
+    [(subc l r) (cmplx- (interp l) (interp r))]
+    [(if0c c t f) 
+      (if (cmplx0? (interp c))
+          (interp t)
+          (interp f))]
+    [(withc defs body)
+      ;; Evaluamos las defs secuencialmente y sustituimos en el body
+      (let loop ([remaining defs] [accum '()])
+        (if (null? remaining)
+            ;; Aplicamos todas las bindings acumuladas al cuerpo
+            (interp
+              (foldl (lambda (b d)
+                       (subst b (car d) (cdr d)))
+                     body
+                     accum))
+            (let* ([d (car remaining)]
+                   [name (car d)]
+                   [expr (cdr d)]
+                   ;; sustituimos solo las bindings previas en expr
+                   [expr-sub (foldl (lambda (e d2)
+                                      (subst e (car d2) (cdr d2)))
+                                    expr
+                                    accum)]
+                   [accum2 (append accum (list (cons name expr-sub)))])
+              (loop (cdr remaining) accum2))))]))
 
